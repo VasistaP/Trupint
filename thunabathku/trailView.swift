@@ -33,6 +33,8 @@ struct TrailCardView: View {
     var body: some View {
         NavigationView{
         ZStack(alignment: .topLeading) {
+            
+            
             AsyncImage(url: URL(string: trail.images.first?.image_name ?? "")) { phase in
                 switch phase {
                 case .empty:

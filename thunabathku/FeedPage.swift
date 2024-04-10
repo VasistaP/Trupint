@@ -1,10 +1,26 @@
 import SwiftUI
 
+// Enum to manage navigation destinations
+enum NavigationDestination {
+    case activityDetail(String)
+    case comments(String)
+}
+
 struct FeedPage: View {
+    @EnvironmentObject var loginViewModel: LoginViewModel
+    @StateObject var viewModel = ActivityViewModel()
+    @State private var navigationDestination: NavigationDestination? // Tracks the current navigation destination
     
-    @ObservedObject var viewModel = ActivityViewModel()
-    let base_url = "https://app.trooperworld.com/php/trooper/uploads/"
+    let baseURL = "https://app.trooperworld.com/php/trooper/uploads/"
     
+    func jsonDecodedString(from string: String) -> String {
+        let quotedString = "\"\(string)\""
+        guard let data = quotedString.data(using: .utf8),
+              let decodedString = try? JSONDecoder().decode(String.self, from: data) else {
+            return string // Return the original string if decoding fails
+        }
+        return decodedString
+    }
     
     var body: some View {
         NavigationView {
@@ -15,33 +31,28 @@ struct FeedPage: View {
                 
                 VStack(spacing: 0) {
                     HStack {
-                        Image(systemName: "line.horizontal.3") // Menu logo
+                        Image(systemName: "line.horizontal.3")
                             .foregroundColor(.white)
                             .padding(.leading, 16)
-                            .font(.system(size: 40))
+                            .font(.system(size: 30))
                         
                         Text("Feed")
                             .font(.system(size: 30))
-                            .font(.headline)
                             .foregroundColor(.white)
                             .padding(.leading, 16)
-                            
-                            
-                        
                         Spacer()
                     }
-                    .padding(.bottom, 5)
+                    .padding(.top, -5)
+                    
                     List(viewModel.activities, id: \.id) { activity in
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                // Display profile picture at the top left
                                 AsyncImage(url: URL(string: activity.profilepic)) { phase in
                                     switch phase {
                                     case .empty:
                                         ProgressView()
                                     case .success(let image):
-                                        image
-                                            .resizable()
+                                        image.resizable()
                                             .aspectRatio(contentMode: .fill)
                                             .frame(width: 30, height: 30)
                                             .clipShape(Circle())
@@ -57,16 +68,15 @@ struct FeedPage: View {
                                 }
                                 .padding(.trailing, 8)
                                 
-                                // Display username to the right of the profile picture
                                 Text(activity.username)
                                     .font(.headline)
                                     .foregroundColor(.black)
                                 
+                                Spacer()
                             }
                             .padding([.top, .horizontal])
                             
-                            // Display placeholder image for the map
-                            AsyncImage(url: URL(string: base_url + activity.static_map_image)) { phase in
+                            AsyncImage(url: URL(string: "\(baseURL)\(activity.static_map_image ?? "")")) { phase in
                                 switch phase {
                                 case .empty:
                                     ProgressView()
@@ -76,104 +86,103 @@ struct FeedPage: View {
                                         .aspectRatio(contentMode: .fill)
                                         .frame(height: 150)
                                         .cornerRadius(8)
-                                case .failure(_):
-                                    // Handle failure, show a placeholder map image
-                                    Image(systemName: "map.fill")
+                                case .failure:
+                                    Image(systemName: "map")
                                         .resizable()
                                         .aspectRatio(contentMode: .fill)
-                                        .frame(height: 100)
+                                        .frame(height: 150)
                                         .cornerRadius(8)
-                                        .foregroundColor(.red)
+                                        .foregroundColor(.gray)
                                 }
                             }
-                            
-                            // Display name below the map placeholder
+
                             Text(activity.name)
                                 .font(.headline)
                                 .foregroundColor(.black)
                             
-                            // Display distance and elevation gain beside each other
                             HStack(spacing: 40) {
-                                // Display distance and elevation gain beside each other
-                                VStack(alignment: .leading){
-                                    Text("Distance:")
-                                        .font(.subheadline)
-                                        .foregroundColor(.gray)
-                                    
-                                    Text("\(activity.distance)")
-                                        .font(.subheadline)
-                                        .foregroundColor(.black)
-                                }
-                                .padding(.top, 4)
-                                
-                                VStack(alignment: .leading){
-                                    Text("Elevation Gain:")
-                                        .font(.subheadline)
-                                        .foregroundColor(.gray)
-                                    
-                                    Text("\(activity.elevation_gain)")
-                                        .font(.subheadline)
-                                        .foregroundColor(.black)
-                                }
-                                .padding(.top, 4)
-                                
-                                VStack(alignment: .leading){
-                                    Text("Time:")
-                                        .font(.subheadline)
-                                        .foregroundColor(.gray)
-                                    
-                                    Text("\(activity.elapsed_time)")
-                                        .font(.subheadline)
-                                        .foregroundColor(.black)
-                                }
-                                .padding(.top, 4)
-                                
-                            }
+                                                            VStack(alignment: .leading){
+                                                                Text("Distance:")
+                                                                    .font(.subheadline)
+                                                                    .foregroundColor(.gray)
+                                                                
+                                                                Text("\(activity.distance)")
+                                                                    .font(.subheadline)
+                                                                    .foregroundColor(.black)
+                                                            }
+                                                            .padding(.top, 4)
+                                                            
+                                                            VStack(alignment: .leading){
+                                                                Text("Elevation Gain:")
+                                                                    .font(.subheadline)
+                                                                    .foregroundColor(.gray)
+                                                                
+                                                                Text("\(activity.elevation_gain)")
+                                                                    .font(.subheadline)
+                                                                    .foregroundColor(.black)
+                                                            }
+                                                            .padding(.top, 4)
+                                                            
+                                                            VStack(alignment: .leading){
+                                                                Text("Time:")
+                                                                    .font(.subheadline)
+                                                                    .foregroundColor(.gray)
+                                                                
+                                                                Text("\(activity.elapsed_time)")
+                                                                    .font(.subheadline)
+                                                                    .foregroundColor(.black)
+                                                            }
+                                                            .padding(.top, 4)
+                                                        }
+                                                        
+                                                        Divider()
+                                                        
+                                                        HStack(spacing:115) {
+                                                            Image(systemName: "heart")
+                                                            Image(systemName: "bubble.right")
+                                                            Image(systemName: "arrowshape.turn.up.right")
+                                                        }
+
+                                                        
+                                                        
+                                                        HStack {
+                                                            ForEach(activity.likes.prefix(3), id: \.id) { like in
+                                                                AsyncImage(url: URL(string: like.profilepic)) { phase in
+                                                                    switch phase {
+                                                                    case .empty:
+                                                                        ProgressView()
+                                                                    case .success(let image):
+                                                                        image
+                                                                            .resizable()
+                                                                            .aspectRatio(contentMode: .fill)
+                                                                            .frame(width: 20, height: 20)
+                                                                            .clipShape(Circle())
+                                                                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                                                                            .padding(.trailing, -10)
+                                                                    case .failure:
+                                                                        Image(systemName: "person.circle")
+                                                                            .resizable()
+                                                                            .aspectRatio(contentMode: .fill)
+                                                                            .frame(width: 20, height: 20)
+                                                                            .clipShape(Circle())
+                                                                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                                                                            .padding(.trailing, -10)
+                                                                    }
+                                                                }
+                                                            }
+                                                            Text("\(activity.likescount) likes")
+                                                                .font(.subheadline)
+                                                                .foregroundColor(.black)
+                                                                .padding(.leading, 5)
+                                                        }
                             
-                            Divider()
+
+                            // Other details...
                             
-                            HStack(spacing:115) {
-                                Image(systemName: "heart")
-                                Image(systemName: "bubble.right")
-                                Image(systemName: "arrowshape.turn.up.right")
-                            }
-                            
-                            
-                            Text("Likes: \(activity.likescount)")
-                                .font(.headline)
-                                .foregroundColor(.black)
-                            
-                            // Display likers' profile pictures
-                            HStack {
-                                ForEach(activity.likes.prefix(3), id: \.id) { like in
-                                    AsyncImage(url: URL(string: like.profilepic)) { phase in
-                                        switch phase {
-                                        case .empty:
-                                            ProgressView()
-                                        case .success(let image):
-                                            image
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                                .frame(width: 20, height: 20)
-                                                .clipShape(Circle())
-                                                .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                                                .padding(.trailing, -10)
-                                        case .failure:
-                                            Image(systemName: "person.circle")
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                                .frame(width: 20, height: 20)
-                                                .clipShape(Circle())
-                                                .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                                                .padding(.trailing, -10)
-                                        }
-                                    }
-                                }
-                            }
-                            if let firstComment = activity.commentscount > 0 ? activity.comment.comment : nil {
+                            if let comment = activity.comment {
                                 VStack {
-                                    HStack() {
-                                        AsyncImage(url: URL(string: activity.comment.profilepic)) { phase in
+                                    HStack {
+                                        AsyncImage(url: URL(string: comment.profilepic)) { phase in
                                             switch phase {
                                             case .empty:
                                                 ProgressView()
@@ -194,22 +203,25 @@ struct FeedPage: View {
                                         .padding(.trailing, 8)
                                         
                                         VStack(alignment: .leading) {
-                                            Text(activity.comment.name)
-                                                .font(.subheadline)
+                                            Text(comment.name)
+                                                .font(.headline)
                                                 .foregroundColor(.black)
-                                            Text(firstComment)
-                                                .font(.caption)
+                                            Text(jsonDecodedString(from: comment.comment))
+                                                .font(.system(size: 14))
                                                 .foregroundColor(.black)
                                         }
+                                        Spacer()
                                     }
-                                    .frame(width:300, height:30)
+                                    .onTapGesture {
+                                        self.navigationDestination = .comments(activity.id)
+                                    }
+                                    .frame(width: 300, height: 30)
                                     .padding()
-                                    .background(Color.gray.opacity(0.3)) // Set the background color here
-                                    .cornerRadius(10) // Adjust the corner radius as needed
-                                    .padding([.trailing], -10) // Adjust the leading padding
+                                    .background(Color.gray.opacity(0.2))
+                                    .cornerRadius(10)
+                                    .padding([.trailing], -10)
                                 }
                             }
-                            
                         }
                         .padding()
                         .background(Color.white)
@@ -217,22 +229,50 @@ struct FeedPage: View {
                         .shadow(radius: 5)
                         .padding([.top, .horizontal])
                         .listRowInsets(EdgeInsets())
+                        .onTapGesture {
+                            self.navigationDestination = .activityDetail(activity.id)
+                        }
                     }
-                    .listStyle(GroupedListStyle())
-                    .padding(.bottom, 100)
-                    
-                    
+                    .listStyle(PlainListStyle())
                 }
             }
+            .background(
+                Group {
+                    switch navigationDestination {
+                    case .activityDetail(let activityId):
+                        NavigationLink(destination: ActivityDetailView(activityId: activityId), isActive: Binding<Bool>(
+                            get: { if case .activityDetail = navigationDestination { return true } else { return false }},
+                            set: { if !$0 { navigationDestination = nil }}
+                        )) {
+                            EmptyView()
+                        }
+                    case .comments(let postId):
+                        NavigationLink(destination: CommentsView(postId: postId), isActive: Binding<Bool>(
+                            get: { if case .comments = navigationDestination { return true } else { return false }},
+                            set: { if !$0 { navigationDestination = nil }}
+                        )) {
+                            EmptyView()
+                        }
+                    case .none:
+                        EmptyView()
+                    }
+                }
+                .hidden()
+            )
+            .navigationBarBackButtonHidden(true)
             .onAppear {
-                viewModel.fetchActivities() // Ensure data is fetched when the view appears
+                viewModel.update(loggedInUser: loginViewModel.loggedInUser)
+                viewModel.fetchActivities()
             }
         }
     }
 }
-
 struct FeedPage_Previews: PreviewProvider {
     static var previews: some View {
-        FeedPage()
+        let mockUser = LoggedInUser(user_id: "1056", email: "test@example.com", name: "Test User", city: "Test City", country: "Test Country", profilepic: "")
+ // Fill in the rest of the required fields
+        let loginViewModel = LoginViewModel(loggedInUser: mockUser)
+        FeedPage().environmentObject(loginViewModel)
+
     }
 }

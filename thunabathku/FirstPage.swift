@@ -138,6 +138,10 @@ struct firstPage: View {
 
 struct firstPage_Previews: PreviewProvider {
     static var previews: some View {
-        firstPage()
+        // Create an instance of LoginViewModel
+        let loginViewModel = LoginViewModel()
+
+        // Return the firstPage view with the LoginViewModel provided as an environment object
+        firstPage().environmentObject(loginViewModel)
     }
 }

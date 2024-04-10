@@ -5,13 +5,12 @@ struct LoginView: View {
     @State private var password = ""
     @State private var wrongPassword = false
     @State private var wrongUsername = false
-    @State private var loadScreen = false
     @State private var signUp = false
     @State private var showAlert = false
     @State private var alertMessage: String?
 
     // Inject the LoginViewModel
-    @StateObject private var loginViewModel = LoginViewModel()
+    @EnvironmentObject private var loginViewModel: LoginViewModel
 
     var body: some View {
         NavigationView {
@@ -36,11 +35,9 @@ struct LoginView: View {
                         .cornerRadius(10)
                         .border(Color.red, width: wrongPassword ? 1 : 0)
 
-                    // Use the login function from the ViewModel
                     Button("Login") {
                         loginViewModel.loginUser(email: username, password: password)
-                        
-                        
+                        // Replace with actual login validation
                     }
                     .foregroundColor(.white)
                     .padding()
@@ -51,16 +48,7 @@ struct LoginView: View {
                     Button("Sign Up?") {
                         signUp = true
                     }
-
-                    // NavigationLinks
-                    NavigationLink(
-                        destination: BottomBarView(),
-                        isActive: $loadScreen,
-                        label: {
-                            EmptyView()
-                        }
-                    )
-                    .navigationBarBackButtonHidden(true)
+                    .padding()
 
                     NavigationLink(
                         destination: SignUView(),
@@ -71,18 +59,14 @@ struct LoginView: View {
                     )
                 }
             }
-            .navigationBarHidden(loadScreen)
-            .navigationBarBackButtonHidden(true)
+            .navigationBarHidden(true)
             .onReceive(loginViewModel.$loggedInUser) { loggedInUser in
-                // Handle successful login, navigate to next screen, etc.
                 if let user = loggedInUser {
-                    loadScreen = true
+                    loginViewModel.isLoggedIn = true
                     print("Logged in successfully. User ID: \(user.user_id)")
-
                 }
             }
             .onReceive(loginViewModel.$loginError) { loginError in
-                // Handle login error, update UI accordingly
                 if let error = loginError {
                     if error.message == "Invalid Password" {
                         wrongPassword = true
@@ -94,17 +78,14 @@ struct LoginView: View {
                 }
             }
             .alert(isPresented: $showAlert) {
-                        Alert(title: Text("Error"), message: Text(alertMessage ?? ""), dismissButton: .default(Text("OK")))
-                    }
-            
-            
+                Alert(title: Text("Error"), message: Text(alertMessage ?? ""), dismissButton: .default(Text("OK")))
+            }
         }
-        .environmentObject(loginViewModel) // Inject the LoginViewModel into the environment
     }
 }
 
 struct LoginView_Previews: PreviewProvider {
     static var previews: some View {
-        LoginView()
+        LoginView().environmentObject(LoginViewModel())
     }
 }

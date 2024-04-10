@@ -51,65 +51,26 @@ struct ProfilePage: View {
                                 .font(.headline)
                                 .foregroundColor(.orange)
                             Text("Following")
+                                .font(.subheadline)
                                 .foregroundColor(.gray)
                         }
                     }
                     .padding(.top, 10)
 
-                    LazyVGrid(columns: Array(repeating: GridItem(), count: 2), spacing: 20) {
-                        VStack {
-                            Text("Activities:")
-                                .font(.headline)
-                            Text("\(userProfile.activities)")
-                                .foregroundColor(.black)
-                        }
-                        .padding()
-
-                        VStack {
-                            Text("Total Distance:")
-                                .font(.headline)
-                            Text("\(userProfile.totalDistance) km")
-                                .foregroundColor(.black)
-                        }
-                        .padding()
-
-                        VStack {
-                            Text("Community Contributions:")
-                                .font(.headline)
-                            Text("\(userProfile.communityContributions)")
-                                .foregroundColor(.black)
-                        }
-                        .padding()
-
-                        VStack {
-                            Text("Elevation Gained:")
-                                .font(.headline)
-                            Text("\(userProfile.elevationGain) m")
-                                .foregroundColor(.black)
-                        }
-                        .padding()
-
-                        VStack {
-                            Text("Points Gained:")
-                                .font(.headline)
-                            Text("\(userProfile.points)")
-                                .foregroundColor(.black)
-                        }
-                        .padding()
-
-                        VStack {
-                            Text("Leaderboard:")
-                                .font(.headline)
-                            Text("#\(userProfile.rank)")
-                                .foregroundColor(.black)
-                        }
-                        .padding()
-                    }
-                    .padding(.top, 10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.gray, lineWidth: 1)
-                    )
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
+                                            ProfileDetailRow(label: "Activities", value: "\(userProfile.activities)", systemImageName: "figure.gymnastics")
+                                            ProfileDetailRow(label: "Total Distance", value: "\(userProfile.totalDistance) km", systemImageName: "point.fill.topleft.down.curvedto.point.fill.bottomright.up")
+                                            ProfileDetailRow(label: "Community Contributions", value: "\(userProfile.communityContributions)", systemImageName: "hands.clap.fill")
+                                            ProfileDetailRow(label: "Elevation Gained", value: "\(userProfile.elevationGain) m", systemImageName: "mountain.2.fill")
+                                            ProfileDetailRow(label: "Points Gained", value: "\(userProfile.points)", systemImageName: "star.fill")
+                                            ProfileDetailRow(label: "Leaderboard", value: "#\(userProfile.rank)", systemImageName: "rosette")
+                                        }
+                                        .padding(.top, 10)
+                                        .padding(.leading, 15)
+                                        /*.overlay(
+                                            RoundedRectangle(cornerRadius: 0)
+                                                .stroke(Color.orange, lineWidth: 2)
+                                        )*/
 
                     // Rectangle with shadows, text, and toggle button
                     Rectangle()
@@ -160,6 +121,31 @@ struct ProfilePage: View {
     }
 }
 
+
+struct ProfileDetailRow: View {
+    var label: String
+    var value: String
+    var systemImageName: String
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: systemImageName)
+                .foregroundColor(.orange)
+                .frame(width: 20, height: 20)
+                .padding(.trailing, 8)
+
+            VStack(alignment: .center) {
+                Text(label + ":")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(value)
+                    .font(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
 struct Card: View {
     var title: String
     var systemName: String

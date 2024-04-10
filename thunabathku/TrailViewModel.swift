@@ -230,6 +230,14 @@ class LoginViewModel: ObservableObject {
     @Published var loggedInUser: LoggedInUser?
     @Published var loginError: LoginError?
     @Published var isLoggedIn: Bool = false
+    
+    init() {
+            // Nothing specific here; could be used to initialize default states or perform checks
+        }
+    
+    init(loggedInUser: LoggedInUser?) {
+            self.loggedInUser = loggedInUser
+        }
 
     func loginUser(email: String, password: String) {
         guard let url = URL(string: "https://app.trooperworld.com/php/trooper/index.php/web_services/Services/login") else {
@@ -308,16 +316,32 @@ struct LoginError: Error {
 class ActivityViewModel: ObservableObject {
     @Published var activities: [Activity] = []
     private var cancellables: Set<AnyCancellable> = []
+    private var loggedInUser: LoggedInUser?
 
-
-
+    // Default init method.
     init() {
         print("ActivityViewModel initialized")
-        fetchActivities()
+    }
+
+    // Method to update the logged-in user and fetch activities.
+    func update(loggedInUser: LoggedInUser?) {
+        self.loggedInUser = loggedInUser
+        if loggedInUser != nil {
+            fetchActivities()
+        } else {
+            activities = []
+        }
     }
 
     func fetchActivities() {
-        guard let url = URL(string: "https://app.trooperworld.com/php/trooper/index.php/web_services/Services/feed?user_id=1056") else {
+        guard let user_id = loggedInUser?.user_id else {
+            print("Error: User ID is unavailable")
+            return
+        }
+        
+        let urlString = "https://app.trooperworld.com/php/trooper/index.php/web_services/Services/feed?user_id=\(user_id)"
+        guard let url = URL(string: urlString) else {
+            print("Invalid URL")
             return
         }
 
@@ -328,12 +352,21 @@ class ActivityViewModel: ObservableObject {
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .finished:
+                    // Print statement could also be placed here for debugging completion state.
                     break
                 case .failure(let error):
-                    print("Error: \(error)")
+                    print("Error during data task operation: \(error)")
                 }
             }, receiveValue: { [weak self] apiResponse in
                 self?.activities = apiResponse.result
+                // Debug print for checking comments
+                self?.activities.forEach { activity in
+                    if let comment = activity.comment {
+                        print("Fetched Comment for Activity ID \(activity.id): \(comment.comment)")
+                    } else {
+                        print("No comment for Activity ID: \(activity.id)")
+                    }
+                }
             })
             .store(in: &cancellables)
     }
@@ -364,8 +397,8 @@ struct Activity: Codable, Identifiable {
     let start_elevation: String?
     let end_elevation: String?
     let user_id: String
-    let static_map_image: String
-    let total_no_of_lat_longs: String
+    let static_map_image: String?
+    let total_no_of_lat_longs: String?
     let created_time: String
     let createdat: String
     let endedat: String
@@ -376,16 +409,83 @@ struct Activity: Codable, Identifiable {
     let profilepic: String
     let activity_images: [ActivityImage]
     let isLiked: Int
-    let likescount: String
+    let likescount: Int
     let likes: [Like]
     let commentscount: Int
-    let comment: Comment
+    let comment: Comment?
     let sharescount: Int
     let shareLink: String
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        activity_type = try container.decode(String.self, forKey: .activity_type)
+        trail_id = try container.decode(String.self, forKey: .trail_id)
+        difficulty_id = try container.decode(String.self, forKey: .difficulty_id)
+        steps = try container.decode(String.self, forKey: .steps)
+        distance = try container.decode(String.self, forKey: .distance)
+        northeast = try container.decodeIfPresent(String.self, forKey: .northeast)
+        southwest = try container.decodeIfPresent(String.self, forKey: .southwest)
+        elapsed_time = try container.decode(String.self, forKey: .elapsed_time)
+        avg_pace = try container.decode(String.self, forKey: .avg_pace)
+        avg_speed = try container.decode(String.self, forKey: .avg_speed)
+        calories = try container.decode(String.self, forKey: .calories)
+        elevation_gain = try container.decode(String.self, forKey: .elevation_gain)
+        start_elevation = try container.decodeIfPresent(String.self, forKey: .start_elevation)
+        end_elevation = try container.decodeIfPresent(String.self, forKey: .end_elevation)
+        user_id = try container.decode(String.self, forKey: .user_id)
+        static_map_image = try container.decodeIfPresent(String.self, forKey: .static_map_image)
+        total_no_of_lat_longs = try container.decodeIfPresent(String.self, forKey: .total_no_of_lat_longs)
+        created_time = try container.decode(String.self, forKey: .created_time)
+        createdat = try container.decode(String.self, forKey: .createdat)
+        endedat = try container.decode(String.self, forKey: .endedat)
+        isActive = try container.decode(String.self, forKey: .isActive)
+        isDeleted = try container.decode(String.self, forKey: .isDeleted)
+        unique_id = try container.decode(String.self, forKey: .unique_id)
+        username = try container.decode(String.self, forKey: .username)
+        profilepic = try container.decode(String.self, forKey: .profilepic)
+        activity_images = try container.decode([ActivityImage].self, forKey: .activity_images)
+        isLiked = try container.decode(Int.self, forKey: .isLiked)
+
+        // Custom decoding for 'likescount'
+        if let likesCountString = try? container.decode(String.self, forKey: .likescount) {
+            if let likesCountInt = Int(likesCountString) {
+                likescount = likesCountInt
+            } else {
+                throw DecodingError.dataCorruptedError(forKey: .likescount, in: container, debugDescription: "likescount is not a valid integer string")
+            }
+        } else {
+            likescount = try container.decode(Int.self, forKey: .likescount)
+        }
+        if let commentDictionary = try? container.decodeIfPresent([String: Comment].self, forKey: .comment) {
+            comment = commentDictionary["comment"] // This case might not be necessary based on your JSON structure.
+        } else {
+            do {
+                comment = try container.decodeIfPresent(Comment.self, forKey: .comment)
+            } catch DecodingError.typeMismatch {
+                // The JSON field is an array (likely empty), not a Comment object.
+                comment = nil
+            } catch {
+                // Handle or throw any other errors.
+                throw error
+            }
+        }
+
+
+        likes = try container.decode([Like].self, forKey: .likes)
+        commentscount = try container.decode(Int.self, forKey: .commentscount)
+       // comment = try container.decode(Comment.self, forKey: .comment)
+        sharescount = try container.decode(Int.self, forKey: .sharescount)
+        shareLink = try container.decode(String.self, forKey: .shareLink)
+    }
+
 
     private enum CodingKeys: String, CodingKey {
         case id, name, activity_type, trail_id, difficulty_id, steps, distance, northeast, southwest, elapsed_time, avg_pace, avg_speed, calories, elevation_gain, start_elevation, end_elevation, user_id, static_map_image, total_no_of_lat_longs, created_time, createdat, endedat, isActive, isDeleted, unique_id, username, profilepic, activity_images, isLiked, likescount, likes, commentscount, comment, sharescount, shareLink
     }
+    
+    
 }
 
 struct ActivityImage: Codable {
@@ -547,3 +647,200 @@ struct UserDetails: Codable {
     }
 }
 
+
+
+
+
+
+class ActivityDetailViewModel: ObservableObject {
+    @Published var activityDetail: ActivityDetail? // Now expecting a single activity detail object
+    private var cancellables: Set<AnyCancellable> = []
+    private let activityId: String
+
+    init(activityId: String) {
+        self.activityId = activityId
+        fetchActivities()
+    }
+
+    func fetchActivities() {
+        guard let url = URL(string: "https://app.trooperworld.com/php/trooper/index.php/web_services/Services/summaryByActivityId?activity_id=\(activityId)") else {
+            return
+        }
+
+        URLSession.shared.dataTaskPublisher(for: url)
+            .map(\.data)
+            .decode(type: detAPIResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .finished:
+                    break
+                case .failure(let error):
+                    print(error)
+                }
+            }, receiveValue: { [weak self] apiResponse in
+                self?.activityDetail = apiResponse.result // Assuming result is a single ActivityDetail object
+            })
+            .store(in: &cancellables)
+    }
+}
+
+
+struct detAPIResponse: Codable {
+    let status: Int
+    let message: String
+    let result: ActivityDetail // Here, assuming 'result' contains a single ActivityDetail object
+}
+
+
+struct ActivityDetail: Codable, Identifiable {
+    let id: String
+    let name: String
+    let activity_type: String
+    let trail_id: String
+    let difficulty_id: String
+    let steps: String
+    let distance: String
+    let northeast: String?
+    let southwest: String?
+    let elapsed_time: String
+    let avg_pace: String
+    let avg_speed: String
+    let calories: Float?
+    let elevation_gain: String
+    let start_elevation: String?
+    let end_elevation: String?
+    let min_elevation: String?
+    let max_elevation: String?
+    let user_id: String
+    let static_map_image: String?
+    let total_no_of_lat_longs: String?
+    let created_time: String
+    let createdat: String
+    let endedat: String
+    let isActive: String
+    let isDeleted: String
+    let unique_id: String
+    let username: String
+    let profilepic: String
+    let activity_images: [detActivityImage]
+    let difficulty_name: String
+    let points: String
+   
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        activity_type = try container.decode(String.self, forKey: .activity_type)
+        trail_id = try container.decode(String.self, forKey: .trail_id)
+        difficulty_id = try container.decode(String.self, forKey: .difficulty_id)
+        steps = try container.decode(String.self, forKey: .steps)
+        distance = try container.decode(String.self, forKey: .distance)
+        northeast = try container.decodeIfPresent(String.self, forKey: .northeast)
+        southwest = try container.decodeIfPresent(String.self, forKey: .southwest)
+        elapsed_time = try container.decode(String.self, forKey: .elapsed_time)
+        avg_pace = try container.decode(String.self, forKey: .avg_pace)
+        avg_speed = try container.decode(String.self, forKey: .avg_speed)
+        calories = try container.decode(Float.self, forKey: .calories)
+        elevation_gain = try container.decode(String.self, forKey: .elevation_gain)
+        start_elevation = try container.decodeIfPresent(String.self, forKey: .start_elevation)
+        end_elevation = try container.decodeIfPresent(String.self, forKey: .end_elevation)
+        user_id = try container.decode(String.self, forKey: .user_id)
+        static_map_image = try container.decodeIfPresent(String.self, forKey: .static_map_image)
+        total_no_of_lat_longs = try container.decodeIfPresent(String.self, forKey: .total_no_of_lat_longs)
+        created_time = try container.decode(String.self, forKey: .created_time)
+        createdat = try container.decode(String.self, forKey: .createdat)
+        endedat = try container.decode(String.self, forKey: .endedat)
+        isActive = try container.decode(String.self, forKey: .isActive)
+        isDeleted = try container.decode(String.self, forKey: .isDeleted)
+        unique_id = try container.decode(String.self, forKey: .unique_id)
+        username = try container.decode(String.self, forKey: .username)
+        profilepic = try container.decode(String.self, forKey: .profilepic)
+        activity_images = try container.decode([detActivityImage].self, forKey: .activity_images)
+        min_elevation = try container.decodeIfPresent(String.self, forKey: .min_elevation)
+        max_elevation = try container.decodeIfPresent(String.self, forKey: .max_elevation)
+        difficulty_name = try container.decode(String.self, forKey: .difficulty_name)
+        points = try container.decode(String.self, forKey: .points)
+        
+    }
+
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, activity_type, trail_id, difficulty_id, steps, distance
+        case northeast = "Northeast", southwest = "Southwest" // Adjust casing to match JSON
+        case elapsed_time, avg_pace, avg_speed, calories, elevation_gain
+        case start_elevation, end_elevation, user_id, static_map_image
+        case total_no_of_lat_longs, created_time, createdat, endedat
+        case isActive, isDeleted, unique_id, username, profilepic, activity_images
+        case min_elevation, max_elevation, difficulty_name, points
+    }
+
+    
+    
+}
+
+struct detActivityImage: Codable {
+    let image: String
+}
+
+
+class CommentsViewModel: ObservableObject {
+    @Published var comments: [Comment] = []
+    @Published var noCommentsMessage: String?
+
+    struct CommentsResponse: Codable {
+        let status: Int
+        let message: String
+        let result: [Comment]?
+    }
+
+    struct Comment: Identifiable, Codable {
+        let id: String
+        let postId: String
+        let userId: String
+        let comment: String
+        let createdTime: String
+        let isActive: String
+        let isDeleted: String
+        let name: String
+        let profilePic: URL
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case postId = "post_id"
+            case userId = "user_id"
+            case comment
+            case createdTime = "created_time"
+            case isActive
+            case isDeleted
+            case name
+            case profilePic = "profilepic"
+        }
+    }
+
+    func fetchComments(forPostId postId: String) async {
+        let urlString = "https://app.trooperworld.com/php/trooper/index.php/web_services/Services/getAllComments?post_id=\(postId)"
+        guard let url = URL(string: urlString) else {
+            print("Invalid URL")
+            return
+        }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let decoder = JSONDecoder()
+            let response = try decoder.decode(CommentsResponse.self, from: data)
+            if response.status == 1, let result = response.result {
+                DispatchQueue.main.async {
+                    self.comments = result
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.noCommentsMessage = "No comments available"
+                }
+            }
+        } catch {
+            print("Error fetching or decoding data: \(error)")
+        }
+    }
+}
